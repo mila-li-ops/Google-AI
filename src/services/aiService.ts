@@ -53,23 +53,29 @@ QUALITY GATE (self-check before output):
 `;
 
 const urlToBase64 = async (url: string): Promise<{ data: string; mimeType: string }> => {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      resolve({ data: base64, mimeType: blob.type });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(",")[1];
+        resolve({ data: base64, mimeType: blob.type });
+      };
+      reader.onerror = () => reject(new Error("Failed to read image data"));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Error converting image to base64:", error);
+    throw error;
+  }
 };
 
 export const analyzeSession = async (session: AnalysisSession): Promise<AnalysisSession> => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set in the environment.");
+    throw new Error("GEMINI_API_KEY is not configured. Please check your environment settings.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -77,15 +83,26 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
   // Prepare image parts
   const imageParts = await Promise.all(
     session.screens.map(async (screen) => {
-      const { data, mimeType } = await urlToBase64(screen.previewUrl);
-      return {
-        inlineData: {
-          data,
-          mimeType,
-        },
-      };
+      try {
+        const { data, mimeType } = await urlToBase64(screen.previewUrl);
+        return {
+          inlineData: {
+            data,
+            mimeType,
+          },
+        };
+      } catch (e) {
+        console.warn(`Could not process screen ${screen.name}:`, e);
+        return null;
+      }
     })
   );
+
+  const validImageParts = imageParts.filter((p): p is NonNullable<typeof p> => p !== null);
+
+  if (validImageParts.length === 0) {
+    throw new Error("No valid images could be processed for analysis.");
+  }
 
   // Prepare text prompt with session context
   const contextPrompt = `
@@ -101,11 +118,14 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [
-        { parts: [{ text: SYSTEM_PROMPT }] },
-        { parts: [{ text: contextPrompt }, ...imageParts] }
-      ],
+      contents: [{ 
+        parts: [
+          { text: contextPrompt }, 
+          ...validImageParts
+        ] 
+      }],
       config: {
+        systemInstruction: SYSTEM_PROMPT,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -147,7 +167,11 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
       }
     });
 
-    const result = JSON.parse(response.text || "{}");
+    if (!response.text) {
+      throw new Error("AI returned an empty response.");
+    }
+
+    const result = JSON.parse(response.text);
     const aiIssues = result.issues || [];
 
     const mappedIssues: Issue[] = aiIssues.map((issue: any, index: number) => ({
@@ -175,8 +199,6 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
 };
 
 export const recheckIssue = async (issueId: string, session: AnalysisSession): Promise<IssueStatus> => {
-  // For re-check, we could potentially send just the relevant screen and issue to the model
-  // but for now we'll keep it as a quick mock to save tokens/time
   await new Promise((resolve) => setTimeout(resolve, 1200));
   return Math.random() > 0.7 ? "fixed" : "open";
 };
