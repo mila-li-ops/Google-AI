@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
 import { 
   AnalysisSession, 
@@ -21,10 +23,12 @@ export const useAnalysis = () => {
 
   // Load initial history
   useEffect(() => {
+    console.log("[useAnalysis] Loading initial sessions from repository");
     setSessions(SessionRepository.getAll());
   }, []);
 
   const createNewSession = useCallback(() => {
+    console.log("[useAnalysis] Creating new session");
     const newSession: AnalysisSession = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -46,59 +50,100 @@ export const useAnalysis = () => {
     setCurrentSession(prev => {
       if (!prev) return null;
       const updated = { ...prev, ...updates };
-      // If we are in completed state and screens/options change, we should ideally revert to draft or warn
-      // For this MVP, we'll allow editing but mark that it needs a re-run if state was completed
+      
+      // If we are in completed state and screens/options change, we should ideally revert to draft
       if (prev.state === "completed" && (updates.screens || updates.options)) {
+        console.log("[useAnalysis] Reverting session to draft due to changes");
         updated.state = "draft";
       }
+      
+      // Persist changes to localStorage if it's an existing session or being promoted
+      if (updated.state !== "draft" || sessions.some(s => s.id === updated.id)) {
+        SessionRepository.save(updated);
+      }
+      
       return updated;
     });
-  }, []);
+  }, [sessions]);
 
   const startAnalysis = useCallback(async () => {
-    if (!currentSession) return;
+    console.log("[useAnalysis] startAnalysis called");
+    
+    if (!currentSession) {
+      console.error("[useAnalysis] Validation failed: No current session");
+      setError("No active session found. Please start a new review.");
+      return;
+    }
+
     if (currentSession.screens.length === 0) {
+      console.error("[useAnalysis] Validation failed: No screens added");
       setError("Please add at least one screen to analyze.");
       return;
     }
 
-    // State Machine: draft -> running
-    updateSession({ state: "running" });
+    console.log("[useAnalysis] Validation passed. Transitioning state: draft -> running");
+    
+    // Explicitly update state and persist
+    const runningSession = { ...currentSession, state: "running" as SessionState };
+    setCurrentSession(runningSession);
+    SessionRepository.save(runningSession);
     setLoading(true);
     setError(null);
 
     try {
-      const result = await runAnalysis(currentSession);
+      console.log("[useAnalysis] Calling analyzeSession service...");
+      const result = await runAnalysis(runningSession);
+      
+      console.log("[useAnalysis] analyzeSession resolved. Transitioning state: running -> completed");
+      
       // State Machine: running -> completed
       setCurrentSession(result);
       SessionRepository.save(result);
       setSessions(SessionRepository.getAll());
+      console.log("[useAnalysis] Analysis successfully completed and persisted");
     } catch (err) {
-      setError("Analysis failed. Please try again.");
-      updateSession({ state: "draft" });
+      const errorMessage = err instanceof Error ? err.message : "Analysis failed. Please try again.";
+      console.error("[useAnalysis] analyzeSession rejected:", err);
+      setError(errorMessage);
+      
+      // Revert to draft on error
+      const revertedSession = { ...currentSession, state: "draft" as SessionState };
+      setCurrentSession(revertedSession);
+      SessionRepository.save(revertedSession);
     } finally {
       setLoading(false);
     }
-  }, [currentSession, updateSession]);
+  }, [currentSession, runAnalysis]);
 
   const selectSession = useCallback((id: string) => {
+    console.log("[useAnalysis] Selecting session:", id);
     const session = SessionRepository.getById(id);
     if (session) {
       setCurrentSession(session);
       setError(null);
+    } else {
+      console.error("[useAnalysis] Session not found:", id);
     }
   }, []);
 
   const deleteSession = useCallback((id: string) => {
+    if (loading && currentSession?.id === id) {
+      console.warn("[useAnalysis] Cannot delete session while analysis is running");
+      setError("Cannot delete session while analysis is in progress.");
+      return false;
+    }
+    console.log("[useAnalysis] Deleting session:", id);
     SessionRepository.delete(id);
     setSessions(SessionRepository.getAll());
     if (currentSession?.id === id) {
       setCurrentSession(null);
     }
-  }, [currentSession]);
+    return true;
+  }, [currentSession, loading, setError]);
 
   const updateIssueStatus = useCallback((issueId: string, status: Issue["status"]) => {
     if (!currentSession) return;
+    console.log(`[useAnalysis] Updating issue ${issueId} status to ${status}`);
     const updatedIssues = currentSession.issues.map(issue => 
       issue.id === issueId ? { ...issue, status } : issue
     );

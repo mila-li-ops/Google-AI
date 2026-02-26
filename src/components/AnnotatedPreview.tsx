@@ -53,32 +53,32 @@ export const AnnotatedPreview: React.FC<AnnotatedPreviewProps> = ({
   const clamp = (val: number) => Math.min(Math.max(val, 0), 1);
 
   return (
-    <div className="flex flex-col h-full bg-slate-100 rounded-2xl overflow-hidden border border-slate-200">
+    <div className="flex flex-col h-full bg-[#0c0f14] rounded-2xl overflow-hidden border border-white/5">
       {/* Toolbar */}
-      <div className="p-2 bg-white border-b border-slate-200 flex items-center justify-between">
-        <div className="flex items-center gap-1">
+      <div className="p-3 bg-[#151922] border-b border-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => handleZoom(0.25)}
-            className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition-colors"
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
             title="Zoom In"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleZoom(-0.25)}
-            className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition-colors"
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
             title="Zoom Out"
           >
             <ZoomOut className="w-4 h-4" />
           </button>
           <button
             onClick={resetZoom}
-            className="p-1.5 hover:bg-slate-100 rounded text-slate-600 transition-colors"
+            className="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
             title="Reset Zoom"
           >
             <Maximize className="w-4 h-4" />
           </button>
-          <span className="text-[10px] font-bold text-slate-400 ml-2">
+          <span className="text-[9px] font-black text-slate-600 ml-3 uppercase tracking-[0.2em]">
             {Math.round(zoom * 100)}%
           </span>
         </div>
@@ -87,10 +87,10 @@ export const AnnotatedPreview: React.FC<AnnotatedPreviewProps> = ({
       {/* Preview Area */}
       <div
         ref={containerRef}
-        className="flex-1 relative overflow-auto scrollbar-hide flex items-start justify-center p-8"
+        className="flex-1 relative overflow-auto scrollbar-hide flex items-start justify-center p-12 bg-black/40"
       >
         <div
-          className="relative shadow-2xl transition-transform duration-200 ease-out origin-top"
+          className="relative transition-transform duration-300 ease-out origin-top"
           style={{ transform: `scale(${zoom})` }}
         >
           <img
@@ -98,7 +98,7 @@ export const AnnotatedPreview: React.FC<AnnotatedPreviewProps> = ({
             src={imageUrl}
             alt="UX Screen"
             onLoad={handleImageLoad}
-            className="max-w-full h-auto block rounded-sm"
+            className="max-w-full h-auto block rounded-lg shadow-[0_30px_60px_rgba(0,0,0,0.5)] opacity-90"
             referrerPolicy="no-referrer"
           />
 
@@ -128,12 +128,12 @@ export const AnnotatedPreview: React.FC<AnnotatedPreviewProps> = ({
                           y={y}
                           width={w}
                           height={h}
-                          className="fill-indigo-500/10 stroke-indigo-500 stroke-2"
+                          className="fill-blue-500/10 stroke-blue-500 stroke-2"
                           rx="4"
                         />
                         {anchor.label && (
                           <foreignObject x={x} y={y - 24} width="200" height="20">
-                            <div className="text-[10px] font-bold text-white bg-indigo-600 px-1.5 py-0.5 rounded inline-block whitespace-nowrap shadow-sm">
+                            <div className="text-[9px] font-black text-white bg-blue-600 px-1.5 py-0.5 rounded inline-block whitespace-nowrap shadow-xl uppercase tracking-widest">
                               {anchor.label}
                             </div>
                           </foreignObject>
@@ -155,17 +155,17 @@ export const AnnotatedPreview: React.FC<AnnotatedPreviewProps> = ({
                           cx={x}
                           cy={y}
                           r="8"
-                          className="fill-indigo-500 stroke-white stroke-2 shadow-lg"
+                          className="fill-blue-500 stroke-white stroke-2 shadow-lg"
                         />
                         <circle
                           cx={x}
                           cy={y}
                           r="12"
-                          className="fill-none stroke-indigo-500 stroke-1 animate-pulse"
+                          className="fill-none stroke-blue-500 stroke-1 animate-pulse"
                         />
                         {anchor.label && (
                           <foreignObject x={x + 12} y={y - 10} width="200" height="20">
-                            <div className="text-[10px] font-bold text-white bg-indigo-600 px-1.5 py-0.5 rounded inline-block whitespace-nowrap shadow-sm">
+                            <div className="text-[9px] font-black text-white bg-blue-600 px-1.5 py-0.5 rounded inline-block whitespace-nowrap shadow-xl uppercase tracking-widest">
                               {anchor.label}
                             </div>
                           </foreignObject>

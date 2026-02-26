@@ -73,18 +73,24 @@ const urlToBase64 = async (url: string): Promise<{ data: string; mimeType: strin
 };
 
 export const analyzeSession = async (session: AnalysisSession): Promise<AnalysisSession> => {
+  console.log("[aiService] analyzeSession started for session:", session.id);
+  
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
+    console.error("[aiService] GEMINI_API_KEY is missing");
     throw new Error("GEMINI_API_KEY is not configured. Please check your environment settings.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
   
   // Prepare image parts
+  console.log(`[aiService] Processing ${session.screens.length} screens...`);
   const imageParts = await Promise.all(
     session.screens.map(async (screen) => {
       try {
+        console.log(`[aiService] Converting screen to base64: ${screen.name} (${screen.previewUrl})`);
         const { data, mimeType } = await urlToBase64(screen.previewUrl);
+        console.log(`[aiService] Successfully converted ${screen.name}`);
         return {
           inlineData: {
             data,
@@ -92,16 +98,18 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
           },
         };
       } catch (e) {
-        console.warn(`Could not process screen ${screen.name}:`, e);
+        console.warn(`[aiService] Could not process screen ${screen.name}:`, e);
         return null;
       }
     })
   );
 
   const validImageParts = imageParts.filter((p): p is NonNullable<typeof p> => p !== null);
+  console.log(`[aiService] Found ${validImageParts.length} valid image parts`);
 
   if (validImageParts.length === 0) {
-    throw new Error("No valid images could be processed for analysis.");
+    console.error("[aiService] No valid images to analyze");
+    throw new Error("No valid images could be processed for analysis. If you uploaded files, please try re-uploading them.");
   }
 
   // Prepare text prompt with session context
@@ -116,6 +124,7 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
   `;
 
   try {
+    console.log("[aiService] Sending request to Gemini API...");
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: [{ 
@@ -168,11 +177,14 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
     });
 
     if (!response.text) {
+      console.error("[aiService] Gemini returned empty text");
       throw new Error("AI returned an empty response.");
     }
 
+    console.log("[aiService] Received response from Gemini. Parsing JSON...");
     const result = JSON.parse(response.text);
     const aiIssues = result.issues || [];
+    console.log(`[aiService] Parsed ${aiIssues.length} issues`);
 
     const mappedIssues: Issue[] = aiIssues.map((issue: any, index: number) => ({
       ...issue,
@@ -186,6 +198,8 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
     const hasAttention = mappedIssues.some(i => i.severity === "attention");
     const overallHealth = hasCritical ? "critical" : hasAttention ? "attention" : "ok";
 
+    console.log("[aiService] Analysis complete. Overall health:", overallHealth);
+
     return {
       ...session,
       issues: mappedIssues,
@@ -193,7 +207,7 @@ export const analyzeSession = async (session: AnalysisSession): Promise<Analysis
       state: "completed",
     };
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("[aiService] Gemini API Error:", error);
     throw error;
   }
 };

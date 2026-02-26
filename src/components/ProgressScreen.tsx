@@ -10,32 +10,38 @@ export const ProgressScreen: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[500px] space-y-12 p-8">
-      <div className="relative">
-        <div className="w-24 h-24 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin"></div>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 text-indigo-600 animate-pulse" />
+    <div className="flex flex-col items-center justify-center min-h-[600px] space-y-20 p-8 relative overflow-hidden">
+      {/* Subtle Background Glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Sharp Engineered Loader */}
+      <div className="relative z-10">
+        <div className="w-32 h-32 rounded-full border border-white/5 flex items-center justify-center">
+          <div className="absolute inset-0 rounded-full border-t-2 border-blue-500 animate-[spin_1.5s_cubic-bezier(0.4,0,0.2,1)_infinite]"></div>
+          <div className="w-16 h-16 rounded-full border border-white/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-b-2 border-blue-400 animate-[spin_1s_linear_infinite_reverse]"></div>
+          </div>
         </div>
       </div>
 
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-bold text-slate-900">Analyzing your designs</h2>
-        <p className="text-slate-500 max-w-xs mx-auto">Our AI is reviewing your screens against 40+ UX heuristics.</p>
+      <div className="text-center space-y-3 relative z-10">
+        <h2 className="text-4xl font-bold text-white tracking-tight">Analyzing your designs</h2>
+        <p className="text-slate-500 text-sm max-w-xs mx-auto font-medium opacity-60">Reviewing against 40+ UX heuristics.</p>
       </div>
 
-      <div className="w-full max-w-sm space-y-4">
+      <div className="w-full max-w-sm space-y-3 relative z-10">
         {steps.map((step, i) => (
           <motion.div 
             key={i}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: step.delay * 0.5 }}
-            className="flex items-center gap-4 p-4 bg-white border border-slate-100 rounded-xl shadow-sm"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: step.delay * 0.3 }}
+            className="flex items-center gap-4 p-4 bg-[#151922] border border-white/5 rounded-xl shadow-2xl shadow-black/40 group hover:border-blue-500/20 transition-colors"
           >
-            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-              <step.icon className="w-5 h-5" />
+            <div className="p-2.5 bg-blue-500/10 rounded-lg text-blue-500 group-hover:bg-blue-500/20 transition-colors">
+              <step.icon className="w-4 h-4" />
             </div>
-            <span className="text-sm font-medium text-slate-700">{step.label}</span>
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">{step.label}</span>
           </motion.div>
         ))}
       </div>
