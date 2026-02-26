@@ -31,6 +31,8 @@ export default function App() {
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Test comment
+
   // Automatically clear toast after 3s
   useEffect(() => {
     if (toast) {
